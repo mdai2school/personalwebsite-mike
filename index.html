@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello World - Game Navigation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Game-like border effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: 8px solid #00ff00;
+            box-shadow: 
+                0 0 20px #00ff00,
+                inset 0 0 20px rgba(0, 255, 0, 0.1);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Corner decorations */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(90deg, #00ff00 2px, transparent 2px),
+                linear-gradient(180deg, #00ff00 2px, transparent 2px);
+            background-size: 40px 40px;
+            opacity: 0.1;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .game-container {
+            position: relative;
+            z-index: 2;
+            width: 1000px;
+            height: 700px;
+            background: #1a1a2e;
+            border: 4px solid #00ff00;
+            box-shadow: 
+                0 0 30px rgba(0, 255, 0, 0.5),
+                inset 0 0 30px rgba(0, 255, 0, 0.1);
+            padding: 20px;
+        }
+
+        h1 {
+            color: #00ff00;
+            font-size: 2.5em;
+            text-align: center;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #00ff00;
+            font-family: 'Courier New', monospace;
+        }
+
+        .subtitle {
+            color: #00ff00;
+            text-align: center;
+            margin-bottom: 20px;
+            opacity: 0.8;
+            font-family: 'Courier New', monospace;
+        }
+
+        #gameCanvas {
+            border: 2px solid #00ff00;
+            background: #0a0a1a;
+            display: block;
+            margin: 0 auto;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+        }
+
+        .controls {
+            text-align: center;
+            color: #00ff00;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        /* Navigation buttons that can be shot */
+        .nav-button {
+            position: absolute;
+            width: 200px;
+            height: 80px;
+            background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
+            border: 3px solid #00ff00;
+            color: #00ff00;
+            font-size: 1.5em;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+            transition: all 0.3s;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 10px #00ff00;
+            z-index: 10;
+        }
+
+        .nav-button:hover {
+            background: linear-gradient(135deg, #2a2a4e, #3a3a6e);
+            box-shadow: 0 0 25px rgba(0, 255, 0, 0.8);
+            transform: scale(1.05);
+        }
+
+        .nav-button.hit {
+            animation: hitFlash 0.3s;
+        }
+
+        @keyframes hitFlash {
+            0%, 100% { 
+                background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
+                transform: scale(1);
+            }
+            50% { 
+                background: linear-gradient(135deg, #ffff00, #ffaa00);
+                transform: scale(1.2);
+                box-shadow: 0 0 40px rgba(255, 255, 0, 1);
+            }
+        }
+
+        #aboutMeBtn {
+            top: 200px;
+            left: 150px;
+        }
+
+        #aboutMatthewBtn {
+            top: 200px;
+            right: 150px;
+        }
+
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00ff00;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>HELLO WORLD</h1>
+        <div class="subtitle">>> NAVIGATION INTERFACE <<</div>
+        
+        <canvas id="gameCanvas" width="960" height="500"></canvas>
+        
+        <!-- Shootable Navigation Buttons -->
+        <div class="nav-button" id="aboutMeBtn" data-page="whme.html">
+            ABOUT ME
+        </div>
+        <div class="nav-button" id="aboutMatthewBtn" data-page="about-matthew.html">
+            ABOUT MATTHEW
+        </div>
+
+        <div class="controls">
+            <p>WASD to Move | ← → Arrow Keys or Mouse to Rotate | Click or Space to Shoot</p>
+        </div>
+
+        <div class="instructions">
+            >> Press SPACE to shoot the buttons to navigate <<
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Player (triangle)
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            angle: 0,
+            size: 25,
+            speed: 0.05,
+            moveSpeed: 5,
+            color: '#00ff00'
+        };
+
+        // Bullets array
+        const bullets = [];
+
+        // Mouse position
+        let mouseX = canvas.width / 2;
+        let mouseY = canvas.height / 2;
+
+        // Keyboard state
+        const keys = {};
+
+        // Navigation buttons data - calculate positions dynamically
+        function getButtonPositions() {
+            const canvasRect = canvas.getBoundingClientRect();
+            const containerRect = document.querySelector('.game-container').getBoundingClientRect();
+            
+            return [
+                {
+                    element: document.getElementById('aboutMeBtn'),
+                    page: 'about-me.html',
+                    width: 200,
+                    height: 80,
+                    getCanvasPos: function() {
+                        const btnRect = this.element.getBoundingClientRect();
+                        return {
+                            x: btnRect.left + btnRect.width / 2 - canvasRect.left,
+                            y: btnRect.top + btnRect.height / 2 - canvasRect.top
+                        };
+                    }
+                },
+                {
+                    element: document.getElementById('aboutMatthewBtn'),
+                    page: 'about-matthew.html',
+                    width: 200,
+                    height: 80,
+                    getCanvasPos: function() {
+                        const btnRect = this.element.getBoundingClientRect();
+                        return {
+                            x: btnRect.left + btnRect.width / 2 - canvasRect.left,
+                            y: btnRect.top + btnRect.height / 2 - canvasRect.top
+                        };
+                    }
+                }
+            ];
+        }
+
+        let navButtons = getButtonPositions();
+        
+        // Update button positions on resize
+        window.addEventListener('resize', () => {
+            navButtons = getButtonPositions();
+        });
+
+        // Event listeners
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        });
+
+        canvas.addEventListener('click', (e) => {
+            shoot();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            keys[key] = true;
+            
+            if (e.key === ' ') {
+                e.preventDefault();
+                shoot();
+            }
+            // Prevent arrow key scrolling
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+                e.preventDefault();
+            }
+            // Prevent default for WASD keys
+            if (['w', 'a', 's', 'd'].includes(key)) {
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            keys[key] = false;
+        });
+
+        // Shoot function
+        function shoot() {
+            bullets.push({
+                x: player.x,
+                y: player.y,
+                angle: player.angle,
+                speed: 10,
+                radius: 5,
+                color: '#ffff00'
+            });
+        }
+
+        // Secret game trigger zone
+        const secretZone = {
+            centerX: canvas.width / 2,
+            centerY: canvas.height,
+            width: 100, // Width of trigger zone
+            activated: false
+        };
+
+        // Update player
+        function updatePlayer() {
+            // WASD movement
+            if (keys['w']) {
+                player.y = Math.max(player.size, player.y - player.moveSpeed);
+            }
+            if (keys['s']) {
+                player.y = Math.min(canvas.height - player.size, player.y + player.moveSpeed);
+            }
+            if (keys['a']) {
+                player.x = Math.max(player.size, player.x - player.moveSpeed);
+            }
+            if (keys['d']) {
+                player.x = Math.min(canvas.width - player.size, player.x + player.moveSpeed);
+            }
+
+            // Rotate with arrow keys - takes priority over mouse
+            if (keys['arrowleft']) {
+                player.angle -= player.speed * 8;
+            }
+            if (keys['arrowright']) {
+                player.angle += player.speed * 8;
+            }
+            
+            // Rotate toward mouse only if arrow keys are not pressed
+            if (!keys['arrowleft'] && !keys['arrowright']) {
+                const dx = mouseX - player.x;
+                const dy = mouseY - player.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Only rotate if mouse is within reasonable distance
+                if (distance > 10) {
+                    const targetAngle = Math.atan2(dy, dx);
+                    let angleDiff = targetAngle - player.angle;
+                    
+                    // Normalize angle difference to [-PI, PI]
+                    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                    while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+                    
+                    // Reduce angular momentum - faster, more direct rotation
+                    player.angle += angleDiff * 0.3;
+                }
+            }
+
+            // Check if player is in secret zone (middle bottom of screen)
+            const inCenter = Math.abs(player.x - secretZone.centerX) < secretZone.width / 2;
+            const atBottom = player.y > canvas.height - player.size - 20;
+            
+            if (inCenter && atBottom && !secretZone.activated) {
+                secretZone.activated = true;
+                // Navigate to secret game after short delay
+                setTimeout(() => {
+                    window.location.href = 'secret-game.html';
+                }, 500);
+            }
+        }
+
+        // Update bullets
+        function updateBullets() {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                bullet.x += Math.cos(bullet.angle) * bullet.speed;
+                bullet.y += Math.sin(bullet.angle) * bullet.speed;
+
+                // Remove if out of bounds
+                if (bullet.x < 0 || bullet.x > canvas.width || 
+                    bullet.y < 0 || bullet.y > canvas.height) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+
+                // Check collision with navigation buttons
+                for (let btn of navButtons) {
+                    const pos = btn.getCanvasPos();
+                    
+                    // Check if bullet is within button bounds
+                    if (bullet.x >= pos.x - btn.width/2 && 
+                        bullet.x <= pos.x + btn.width/2 &&
+                        bullet.y >= pos.y - btn.height/2 && 
+                        bullet.y <= pos.y + btn.height/2) {
+                        
+                        // Hit button!
+                        bullets.splice(i, 1);
+                        
+                        // Flash effect
+                        btn.element.classList.add('hit');
+                        setTimeout(() => {
+                            btn.element.classList.remove('hit');
+                        }, 300);
+                        
+                        // Navigate after short delay for visual effect
+                        setTimeout(() => {
+                            window.location.href = btn.page;
+                        }, 300);
+                        
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Draw functions
+        function drawPlayer() {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            ctx.rotate(player.angle);
+
+            // Draw triangle
+            ctx.beginPath();
+            ctx.moveTo(player.size, 0);
+            ctx.lineTo(-player.size, -player.size * 0.8);
+            ctx.lineTo(-player.size, player.size * 0.8);
+            ctx.closePath();
+            
+            // Gradient fill
+            const gradient = ctx.createLinearGradient(-player.size, 0, player.size, 0);
+            gradient.addColorStop(0, '#00ff00');
+            gradient.addColorStop(1, '#00aa00');
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Glow effect
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#00ff00';
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function drawBullets() {
+            bullets.forEach(bullet => {
+                ctx.beginPath();
+                ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
+                
+                // Glowing bullet
+                const gradient = ctx.createRadialGradient(
+                    bullet.x, bullet.y, 0,
+                    bullet.x, bullet.y, bullet.radius
+                );
+                gradient.addColorStop(0, '#ffff00');
+                gradient.addColorStop(1, '#ff8800');
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#ffff00';
+                ctx.fill();
+                
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            });
+        }
+
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = '#0a0a1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid
+            ctx.strokeStyle = 'rgba(0, 255, 0, 0.1)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 40) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 40) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Draw target indicators on buttons
+            navButtons.forEach(btn => {
+                const pos = btn.getCanvasPos();
+                ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.rect(
+                    pos.x - btn.width/2 - 5,
+                    pos.y - btn.height/2 - 5,
+                    btn.width + 10,
+                    btn.height + 10
+                );
+                ctx.stroke();
+                ctx.setLineDash([]);
+            });
+
+            // Draw secret zone indicator at bottom center
+            ctx.strokeStyle = 'rgba(255, 255, 0, 0.2)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([10, 10]);
+            ctx.beginPath();
+            ctx.rect(
+                secretZone.centerX - secretZone.width / 2,
+                canvas.height - 30,
+                secretZone.width,
+                30
+            );
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            drawBullets();
+            drawPlayer();
+        }
+
+        // Game loop
+        function gameLoop() {
+            updatePlayer();
+            updateBullets();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Prevent clicking on buttons directly - tell user to use SPACE
+        document.getElementById('aboutMeBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            alert('Press SPACE to shoot the button and navigate!');
+        });
+
+        document.getElementById('aboutMatthewBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            alert('Press SPACE to shoot the button and navigate!');
+        });
+
+        // Start game
+        gameLoop();
+    </script>
+</body>
+</html>

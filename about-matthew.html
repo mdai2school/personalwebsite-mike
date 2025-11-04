@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Matthew</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: auto;
+            position: relative;
+            color: #00ff00;
+        }
+
+        /* Game-like border effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: 8px solid #00ff00;
+            box-shadow: 
+                0 0 20px #00ff00,
+                inset 0 0 20px rgba(0, 255, 0, 0.1);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Corner decorations */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(90deg, #00ff00 2px, transparent 2px),
+                linear-gradient(180deg, #00ff00 2px, transparent 2px);
+            background-size: 40px 40px;
+            opacity: 0.1;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .game-container {
+            position: relative;
+            z-index: 2;
+            max-width: 900px;
+            width: 90%;
+            margin: 40px auto;
+            background: #1a1a2e;
+            border: 4px solid #00ff00;
+            box-shadow: 
+                0 0 30px rgba(0, 255, 0, 0.5),
+                inset 0 0 30px rgba(0, 255, 0, 0.1);
+            padding: 40px;
+        }
+
+        #gameCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        #gameCanvas.active {
+            pointer-events: all;
+        }
+
+        h1 {
+            color: #00ff00;
+            font-size: 2.5em;
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 0 0 10px #00ff00;
+            border-bottom: 2px solid #00ff00;
+            padding-bottom: 15px;
+        }
+
+        .content {
+            line-height: 1.8;
+            font-size: 1.1em;
+            position: relative;
+            z-index: 3;
+        }
+
+        .content p {
+            margin-bottom: 20px;
+            text-align: justify;
+        }
+
+        .content h2 {
+            color: #00ff00;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            text-shadow: 0 0 5px #00ff00;
+        }
+
+        .content ul {
+            margin-left: 30px;
+            margin-bottom: 20px;
+        }
+
+        .content li {
+            margin-bottom: 10px;
+        }
+
+        .nav-button {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
+            border: 3px solid #00ff00;
+            color: #00ff00;
+            text-decoration: none;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+            transition: all 0.3s;
+            text-align: center;
+            text-shadow: 0 0 10px #00ff00;
+            z-index: 10;
+            width: 250px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nav-button:hover {
+            background: linear-gradient(135deg, #2a2a4e, #3a3a6e);
+            box-shadow: 0 0 25px rgba(0, 255, 0, 0.8);
+            transform: translateX(-50%) scale(1.05);
+        }
+
+        .nav-button.hit {
+            animation: hitFlash 0.3s;
+        }
+
+        @keyframes hitFlash {
+            0%, 100% { 
+                background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
+                transform: translateX(-50%) scale(1);
+            }
+            50% { 
+                background: linear-gradient(135deg, #ffff00, #ffaa00);
+                transform: translateX(-50%) scale(1.2);
+                box-shadow: 0 0 40px rgba(255, 255, 0, 1);
+            }
+        }
+
+        .button-container {
+            text-align: center;
+            position: relative;
+            margin-top: 40px;
+            height: 100px;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00ff00;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            z-index: 10;
+            background: rgba(10, 10, 10, 0.8);
+            padding: 10px 20px;
+            border: 2px solid #00ff00;
+            opacity: 1;
+            transition: opacity 1s ease-out;
+        }
+
+        .controls.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .cursor {
+            animation: blink 1s infinite;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    
+    <div class="game-container">
+        <h1>>> ABOUT MATTHEW <span class="cursor">_</span></h1>
+        
+        <div class="content">
+            <p>
+                This is a page dedicated to Matthew. Here you can learn about his background, 
+                interests, and accomplishments.
+            </p>
+
+            <h2>>> BACKGROUND</h2>
+            <p>
+                Matthew is an innovative thinker with a passion for technology and design. 
+                He brings creativity and technical expertise to every project he works on.
+            </p>
+
+            <h2>>> ACHIEVEMENTS</h2>
+            <ul>
+                <li>Expert in modern web technologies</li>
+                <li>Creative designer and developer</li>
+                <li>Collaborative team player</li>
+                <li>Continuous learner</li>
+            </ul>
+
+            <h2>>> INTERESTS</h2>
+            <p>
+                Matthew enjoys staying at the forefront of web development, exploring new 
+                frameworks and tools, and creating engaging user experiences. When not coding, 
+                he appreciates good design, music, and technology trends.
+            </p>
+
+            <h2>>> COLLABORATION</h2>
+            <p>
+                Always open to new opportunities and exciting projects. Feel free to reach out 
+                for collaboration or just to connect!
+            </p>
+        </div>
+
+        <div class="button-container">
+            <a href="index.html" class="nav-button" id="homeBtn"><< BACK TO HOME</a>
+        </div>
+
+        <div class="controls">
+            <p>WASD to Move | ← → Arrow Keys or Mouse to Rotate | Click or Space to Shoot</p>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Set canvas size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            canvas.classList.add('active');
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Player (triangle)
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            angle: 0,
+            size: 25,
+            speed: 0.05,
+            moveSpeed: 5,
+            color: '#00ff00'
+        };
+
+        // Bullets array
+        const bullets = [];
+
+        // Mouse position
+        let mouseX = canvas.width / 2;
+        let mouseY = canvas.height / 2;
+
+        // Keyboard state
+        const keys = {};
+
+        // Navigation targets - calculate positions dynamically
+        function getTargets() {
+            const canvasRect = canvas.getBoundingClientRect();
+            
+            const targets = [];
+
+            // Home button
+            const homeBtn = document.getElementById('homeBtn');
+            if (homeBtn) {
+                const btnRect = homeBtn.getBoundingClientRect();
+                targets.push({
+                    element: homeBtn,
+                    page: 'index.html',
+                    width: 250,
+                    height: 60,
+                    getCanvasPos: function() {
+                        return {
+                            x: btnRect.left + btnRect.width / 2 - canvasRect.left,
+                            y: btnRect.top + btnRect.height / 2 - canvasRect.top
+                        };
+                    }
+                });
+            }
+
+            return targets;
+        }
+
+        let targets = getTargets();
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            targets = getTargets();
+        });
+
+        // Event listeners
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        });
+
+        canvas.addEventListener('click', (e) => {
+            shoot();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            keys[key] = true;
+            
+            if (e.key === ' ') {
+                e.preventDefault();
+                shoot();
+            }
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+                e.preventDefault();
+            }
+            if (['w', 'a', 's', 'd'].includes(key)) {
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            keys[key] = false;
+        });
+
+        // Shoot function
+        function shoot() {
+            bullets.push({
+                x: player.x,
+                y: player.y,
+                angle: player.angle,
+                speed: 10,
+                radius: 5,
+                color: '#ffff00'
+            });
+        }
+
+        // Update player
+        function updatePlayer() {
+            // WASD movement
+            if (keys['w']) {
+                player.y = Math.max(player.size, player.y - player.moveSpeed);
+            }
+            if (keys['s']) {
+                player.y = Math.min(canvas.height - player.size, player.y + player.moveSpeed);
+            }
+            if (keys['a']) {
+                player.x = Math.max(player.size, player.x - player.moveSpeed);
+            }
+            if (keys['d']) {
+                player.x = Math.min(canvas.width - player.size, player.x + player.moveSpeed);
+            }
+
+            // Rotate with arrow keys
+            if (keys['arrowleft']) {
+                player.angle -= player.speed * 8;
+            }
+            if (keys['arrowright']) {
+                player.angle += player.speed * 8;
+            }
+            
+            // Rotate toward mouse if arrow keys not pressed
+            if (!keys['arrowleft'] && !keys['arrowright']) {
+                const dx = mouseX - player.x;
+                const dy = mouseY - player.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance > 10) {
+                    const targetAngle = Math.atan2(dy, dx);
+                    let angleDiff = targetAngle - player.angle;
+                    
+                    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                    while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+                    
+                    player.angle += angleDiff * 0.3;
+                }
+            }
+        }
+
+        // Update bullets
+        function updateBullets() {
+            targets = getTargets();
+            
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                bullet.x += Math.cos(bullet.angle) * bullet.speed;
+                bullet.y += Math.sin(bullet.angle) * bullet.speed;
+
+                // Remove if out of bounds
+                if (bullet.x < 0 || bullet.x > canvas.width || 
+                    bullet.y < 0 || bullet.y > canvas.height) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+
+                // Check collision with targets
+                for (let target of targets) {
+                    const pos = target.getCanvasPos();
+                    
+                    if (bullet.x >= pos.x - target.width/2 && 
+                        bullet.x <= pos.x + target.width/2 &&
+                        bullet.y >= pos.y - target.height/2 && 
+                        bullet.y <= pos.y + target.height/2) {
+                        
+                        bullets.splice(i, 1);
+                        
+                        target.element.classList.add('hit');
+                        setTimeout(() => {
+                            target.element.classList.remove('hit');
+                        }, 300);
+                        
+                        setTimeout(() => {
+                            window.location.href = target.page;
+                        }, 300);
+                        
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Draw functions
+        function drawPlayer() {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            ctx.rotate(player.angle);
+
+            ctx.beginPath();
+            ctx.moveTo(player.size, 0);
+            ctx.lineTo(-player.size, -player.size * 0.8);
+            ctx.lineTo(-player.size, player.size * 0.8);
+            ctx.closePath();
+            
+            const gradient = ctx.createLinearGradient(-player.size, 0, player.size, 0);
+            gradient.addColorStop(0, '#00ff00');
+            gradient.addColorStop(1, '#00aa00');
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#00ff00';
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function drawBullets() {
+            bullets.forEach(bullet => {
+                ctx.beginPath();
+                ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
+                
+                const gradient = ctx.createRadialGradient(
+                    bullet.x, bullet.y, 0,
+                    bullet.x, bullet.y, bullet.radius
+                );
+                gradient.addColorStop(0, '#ffff00');
+                gradient.addColorStop(1, '#ff8800');
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#ffff00';
+                ctx.fill();
+                
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            });
+        }
+
+        function draw() {
+            // Clear canvas with transparency
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid
+            ctx.strokeStyle = 'rgba(0, 255, 0, 0.1)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 40) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 40) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Draw target indicators
+            targets.forEach(target => {
+                const pos = target.getCanvasPos();
+                ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.rect(
+                    pos.x - target.width/2 - 5,
+                    pos.y - target.height/2 - 5,
+                    target.width + 10,
+                    target.height + 10
+                );
+                ctx.stroke();
+                ctx.setLineDash([]);
+            });
+
+            drawBullets();
+            drawPlayer();
+        }
+
+        // Game loop
+        function gameLoop() {
+            updatePlayer();
+            updateBullets();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Prevent direct clicking
+        document.getElementById('homeBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+        });
+
+        // Fade out controls after 5 seconds
+        const controls = document.querySelector('.controls');
+        setTimeout(() => {
+            controls.classList.add('fade-out');
+        }, 5000);
+
+        // Start game
+        gameLoop();
+    </script>
+</body>
+</html>
