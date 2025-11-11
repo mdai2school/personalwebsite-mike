@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Stuff Viewer</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #05090f;
+            --panel: rgba(20, 32, 44, 0.92);
+            --accent: #4bf3c7;
+            --accent-soft: rgba(75, 243, 199, 0.3);
+            --text: #ebfffb;
+            --muted: rgba(235, 255, 251, 0.7);
+            --danger: #ff7b7b;
+            --font-mono: 'Courier New', Courier, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: radial-gradient(circle at top, rgba(18, 87, 70, 0.2), transparent 55%), var(--bg);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 16px;
+        }
+
+        .frame {
+            width: min(960px, 100%);
+            background: var(--panel);
+            border: 2px solid var(--accent-soft);
+            border-radius: 18px;
+            padding: 32px;
+            box-shadow: 0 18px 70px rgba(0, 0, 0, 0.45);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .frame::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(75, 243, 199, 0.12), transparent);
+            pointer-events: none;
+        }
+
+        header {
+            position: relative;
+            z-index: 1;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(1.8rem, 3vw, 2.4rem);
+            letter-spacing: 0.08em;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+        }
+
+        .subtitle {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        .status {
+            margin: 16px 0 24px;
+            padding: 14px 16px;
+            border-radius: 10px;
+            background: rgba(3, 12, 17, 0.5);
+            border: 1px solid rgba(75, 243, 199, 0.2);
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            color: var(--muted);
+        }
+
+        .status.error {
+            border-color: rgba(255, 123, 123, 0.5);
+            color: #ffbcbc;
+            background: rgba(60, 10, 10, 0.4);
+        }
+
+        .new-doc {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px 16px;
+            align-items: flex-end;
+            margin: 0 0 26px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .new-doc label {
+            display: flex;
+            flex-direction: column;
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            letter-spacing: 0.08em;
+            color: rgba(75, 243, 199, 0.8);
+            text-transform: uppercase;
+        }
+
+        .new-doc input {
+            margin-top: 6px;
+            padding: 11px 12px;
+            min-width: 220px;
+            border-radius: 10px;
+            border: 1px solid rgba(75, 243, 199, 0.25);
+            background: rgba(5, 18, 22, 0.8);
+            color: var(--text);
+            font-family: var(--font-mono);
+            font-size: 0.95rem;
+        }
+
+        .new-doc input:focus {
+            outline: 2px solid rgba(75, 243, 199, 0.4);
+            outline-offset: 2px;
+        }
+
+        .new-doc button {
+            padding: 12px 18px;
+            border-radius: 24px;
+            border: 1px solid rgba(75, 243, 199, 0.45);
+            background: rgba(13, 46, 38, 0.9);
+            color: var(--accent);
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: transform 0.18s ease, background 0.18s ease;
+        }
+
+        .new-doc button:hover:not([disabled]) {
+            transform: translateY(-1px);
+            background: rgba(13, 46, 38, 1);
+        }
+
+        .new-doc button[disabled] {
+            opacity: 0.6;
+            cursor: progress;
+        }
+
+        .form-note {
+            flex: 1 1 100%;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: rgba(235, 255, 251, 0.7);
+        }
+
+        .form-note.success {
+            color: rgba(108, 255, 210, 0.9);
+        }
+
+        .form-note.error {
+            color: #ff9d9d;
+        }
+
+        .grid {
+            display: grid;
+            gap: 18px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .card {
+            background: rgba(5, 12, 17, 0.6);
+            border: 1px solid rgba(75, 243, 199, 0.22);
+            border-radius: 14px;
+            padding: 18px;
+            transition: border-color 180ms ease, transform 200ms ease;
+        }
+
+        .card:hover {
+            border-color: rgba(75, 243, 199, 0.45);
+            transform: translateY(-2px);
+        }
+
+        .card h2 {
+            margin: 0 0 12px;
+            font-family: var(--font-mono);
+            font-size: 0.95rem;
+            letter-spacing: 0.04em;
+            color: var(--accent);
+            text-transform: uppercase;
+        }
+
+        .card .fields {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px 16px;
+        }
+
+        .card .field {
+            padding: 12px;
+            background: rgba(8, 26, 24, 0.45);
+            border: 1px solid rgba(75, 243, 199, 0.18);
+            border-radius: 10px;
+            display: grid;
+            gap: 6px;
+        }
+
+        .card .key {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            letter-spacing: 0.08em;
+            color: rgba(75, 243, 199, 0.85);
+            text-transform: uppercase;
+        }
+
+        .card .value {
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            color: rgba(235, 255, 251, 0.9);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .card pre {
+            margin: 0;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: var(--muted);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--muted);
+            font-family: var(--font-mono);
+            border: 1px dashed rgba(75, 243, 199, 0.3);
+            border-radius: 14px;
+        }
+
+        .actions {
+            margin-top: 32px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            position: relative;
+            z-index: 1;
+        }
+
+        a.button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 18px;
+            border-radius: 24px;
+            border: 1px solid rgba(75, 243, 199, 0.4);
+            color: var(--accent);
+            text-decoration: none;
+            font-family: var(--font-mono);
+            transition: background 200ms ease, transform 200ms ease;
+        }
+
+        a.button:hover {
+            background: rgba(75, 243, 199, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .pill {
+            font-size: 0.76rem;
+            border: 1px solid rgba(75, 243, 199, 0.3);
+            border-radius: 999px;
+            padding: 4px 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--accent);
+        }
+
+        .field {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px dashed rgba(75, 243, 199, 0.1);
+        }
+
+        .field .key {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .field .value {
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            color: var(--text);
+            word-break: break-word;
+            flex-grow: 1;
+            margin-left: 15px;
+        }
+
+        @media (max-width: 600px) {
+            .frame {
+                padding: 22px;
+            }
+
+            .actions {
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="frame">
+        <header>
+            <h1>>> DATA_STUFF DIGEST</h1>
+            <div class="subtitle">Realtime view of everything inside your Firestore collection.</div>
+        </header>
+
+        <div id="status" class="status pill">Initializing Firebase…</div>
+
+        <form id="fruitForm" class="new-doc">
+            <label>
+                Fruit name
+                <input type="text" name="name" id="fruitName" placeholder="e.g. Dragonfruit" autocomplete="off" required>
+            </label>
+            <label>
+                Picked at (leave blank for now)
+                <input type="datetime-local" name="pickDate" id="fruitPickDate" autocomplete="off">
+            </label>
+            <label>
+                Taste
+                <input type="text" name="taste" id="fruitTaste" placeholder="e.g. sweet" autocomplete="off" required>
+            </label>
+            <button type="submit" id="addFruitButton">+ Add Fruit</button>
+            <button type="button" id="seedFruitButton">Add Sample Fruit</button>
+            <span id="fruitMessage" class="form-note">Add a new fruit document to the collection.</span>
+        </form>
+
+        <section id="cards" class="grid" aria-live="polite"></section>
+
+        <footer class="actions">
+            <a class="button" href="index.html">⟵ Back to Home</a>
+        </footer>
+    </div>
+
+    <script type="module">
+        import { firebaseConfig } from './firebase-config.js';
+
+        const statusEl = document.getElementById('status');
+        const cardsEl = document.getElementById('cards');
+        const fruitForm = document.getElementById('fruitForm');
+        const addFruitButton = document.getElementById('addFruitButton');
+        const seedFruitButton = document.getElementById('seedFruitButton');
+        const fruitMessage = document.getElementById('fruitMessage');
+
+        const showStatus = (message, type = 'info') => {
+            statusEl.textContent = message;
+            statusEl.className = type === 'error' ? 'status error' : 'status pill';
+        };
+
+        const showFruitMessage = (message, type = 'info') => {
+            if (!fruitMessage) return;
+            fruitMessage.textContent = message;
+            fruitMessage.className = `form-note${type === 'error' ? ' error' : type === 'success' ? ' success' : ''}`;
+        };
+
+        const showEmpty = () => {
+            cardsEl.innerHTML = `
+                <div class="empty-state">
+                    <p>No documents found in <strong>data_stuff</strong> yet.</p>
+                    <p>Add something in Firestore and it will pop up here instantly.</p>
+                </div>
+            `;
+        };
+
+        const hasConfigPlaceholder = (config) => {
+            if (!config || typeof config !== 'object') return true;
+            return Object.values(config).some(value => typeof value === 'string' && value.startsWith('YOUR_'));
+        };
+
+        const bootstrap = async () => {
+            let loadingTimeout = null;
+
+            const setLoadingHint = () => {
+                loadingTimeout = setTimeout(() => {
+                    showStatus('Still loading… ensure you are serving the site over HTTPS or using the Firebase emulator.', 'error');
+                    showEmpty();
+                }, 8000);
+            };
+
+            try {
+                if (hasConfigPlaceholder(firebaseConfig)) {
+                    showStatus('Firebase config missing → add your Firebase credentials in firebase-config.js.', 'error');
+                    showEmpty();
+                    throw new Error('Missing firebase config');
+                }
+
+                showStatus('Loading Firebase SDK…');
+                setLoadingHint();
+                const [appMod, firestoreMod] = await Promise.all([
+                    import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js'),
+                    import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js')
+                ]);
+
+                clearTimeout(loadingTimeout);
+                const app = appMod.initializeApp(firebaseConfig);
+                const { getFirestore, collection, onSnapshot, query, orderBy, addDoc, serverTimestamp } = firestoreMod;
+                const db = getFirestore(app);
+
+                showStatus('Connected. Waiting for data from data_stuff…');
+
+                const baseCollection = collection(db, 'data_stuff');
+
+                if (fruitForm && addFruitButton) {
+                    fruitForm.addEventListener('submit', async (event) => {
+                        event.preventDefault();
+
+                        const formData = new FormData(fruitForm);
+                        const name = (formData.get('name') || '').toString().trim();
+                        const taste = (formData.get('taste') || '').toString().trim();
+                        const pickDateRaw = (formData.get('pickDate') || '').toString().trim();
+
+                        if (!name) {
+                            showFruitMessage('Please enter a fruit name before adding.', 'error');
+                            return;
+                        }
+
+                        if (!taste) {
+                            showFruitMessage('Please enter a taste description before adding.', 'error');
+                            return;
+                        }
+
+                        addFruitButton.disabled = true;
+                        showFruitMessage('Adding fruit…');
+
+                        const payload = {
+                            name,
+                            taste,
+                            type: 'fruit',
+                            createdAt: serverTimestamp(),
+                            pickDate: pickDateRaw ? new Date(pickDateRaw) : serverTimestamp()
+                        };
+
+                        try {
+                            await addDoc(baseCollection, payload);
+                            fruitForm.reset();
+                            showFruitMessage(`Added "${name}" to data_stuff.`, 'success');
+                        } catch (err) {
+                            console.error(err);
+                            showFruitMessage(`Could not add fruit: ${err.message}`, 'error');
+                        } finally {
+                            addFruitButton.disabled = false;
+                        }
+                    });
+                }
+
+                if (seedFruitButton) {
+                    const sampleFruits = [
+                        { name: 'Pineapple', taste: 'sweet-tart' },
+                        { name: 'Lychee', taste: 'floral-sweet' },
+                        { name: 'Starfruit', taste: 'crisp and tangy' },
+                        { name: 'Rambutan', taste: 'juicy and sweet' },
+                        { name: 'Kiwano', taste: 'mild and citrusy' }
+                    ];
+
+                    seedFruitButton.addEventListener('click', async () => {
+                        const pick = sampleFruits[Math.floor(Math.random() * sampleFruits.length)];
+                        showFruitMessage(`Adding ${pick.name}…`);
+                        seedFruitButton.disabled = true;
+
+                        try {
+                            await addDoc(baseCollection, {
+                                name: pick.name,
+                                taste: pick.taste,
+                                type: 'fruit',
+                                createdAt: serverTimestamp(),
+                                pickDate: serverTimestamp()
+                            });
+                            showFruitMessage(`Sample fruit "${pick.name}" added.`, 'success');
+                        } catch (err) {
+                            console.error(err);
+                            showFruitMessage(`Could not add sample fruit: ${err.message}`, 'error');
+                        } finally {
+                            seedFruitButton.disabled = false;
+                        }
+                    });
+                }
+
+                onSnapshot(baseCollection, (snapshot) => {
+                    clearTimeout(loadingTimeout);
+                    if (snapshot.empty) {
+                        showStatus('No documents yet — add one to data_stuff to see it here.');
+                        showEmpty();
+                        return;
+                    }
+
+                    const docs = snapshot.docs.slice().sort((a, b) => {
+                        const aTime = a.get('createdAt')?.toMillis?.() || 0;
+                        const bTime = b.get('createdAt')?.toMillis?.() || 0;
+                        return bTime - aTime;
+                    });
+
+                    const fragment = document.createDocumentFragment();
+                    docs.forEach(doc => {
+                        const data = doc.data();
+                        const renderedFields = Object.entries(data).map(([key, value]) => {
+                            let displayValue = value;
+                            if (value && typeof value === 'object' && typeof value.toDate === 'function') {
+                                try {
+                                    const iso = value.toDate().toISOString();
+                                    const readable = value.toDate().toLocaleString();
+                                    displayValue = `${readable}\n(${iso})`;
+                                } catch (err) {
+                                    displayValue = JSON.stringify(value, null, 2);
+                                }
+                            } else if (Array.isArray(value)) {
+                                displayValue = value.map(item => JSON.stringify(item)).join(', ');
+                            } else if (typeof value === 'object') {
+                                displayValue = JSON.stringify(value, null, 2);
+                            }
+
+                            return `
+                                <div class="field">
+                                    <span class="key">${key}</span>
+                                    <span class="value">${displayValue}</span>
+                                </div>
+                            `;
+                        }).join('');
+
+                        const card = document.createElement('article');
+                        card.className = 'card';
+                        card.innerHTML = `
+                            <h2># ${doc.id}</h2>
+                            <div class="fields">
+                                ${renderedFields}
+                            </div>
+                        `;
+                        fragment.appendChild(card);
+                    });
+
+                    cardsEl.innerHTML = '';
+                    cardsEl.appendChild(fragment);
+                    showStatus(`Displaying ${snapshot.size} document${snapshot.size === 1 ? '' : 's'} from data_stuff.`);
+                }, (error) => {
+                    console.error(error);
+                    showStatus(`Firestore error: ${error.message}`, 'error');
+                    showEmpty();
+                });
+            } catch (error) {
+                clearTimeout(loadingTimeout);
+                if (error.message !== 'Missing firebase config') {
+                    console.error(error);
+                    const isNetworkIssue = error.message && /fetch|Failed to fetch|network/i.test(error.message);
+                    if (isNetworkIssue) {
+                        showStatus('Could not load Firebase SDK. Check your internet connection and try again.', 'error');
+                    } else {
+                        showStatus(`Initialization failed: ${error.message}`, 'error');
+                    }
+                    showEmpty();
+                }
+            }
+        };
+
+        bootstrap();
+    </script>
+</body>
+</html>

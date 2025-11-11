@@ -154,6 +154,11 @@
             right: 150px;
         }
 
+        #dataStuffBtn {
+            bottom: 130px;
+            left: calc(50% - 100px);
+        }
+
         .instructions {
             position: absolute;
             bottom: 20px;
@@ -174,11 +179,14 @@
         <canvas id="gameCanvas" width="960" height="500"></canvas>
         
         <!-- Shootable Navigation Buttons -->
-        <div class="nav-button" id="aboutMeBtn" data-page="whme.html">
+        <div class="nav-button" id="aboutMeBtn" data-page="about-me.html">
             ABOUT ME
         </div>
         <div class="nav-button" id="aboutMatthewBtn" data-page="about-matthew.html">
             ABOUT MATTHEW
+        </div>
+        <div class="nav-button" id="dataStuffBtn" data-page="data-stuff.html">
+            DATA STUFF
         </div>
 
         <div class="controls">
@@ -218,36 +226,23 @@
         // Navigation buttons data - calculate positions dynamically
         function getButtonPositions() {
             const canvasRect = canvas.getBoundingClientRect();
-            const containerRect = document.querySelector('.game-container').getBoundingClientRect();
-            
-            return [
-                {
-                    element: document.getElementById('aboutMeBtn'),
-                    page: 'about-me.html',
-                    width: 200,
-                    height: 80,
-                    getCanvasPos: function() {
-                        const btnRect = this.element.getBoundingClientRect();
-                        return {
-                            x: btnRect.left + btnRect.width / 2 - canvasRect.left,
-                            y: btnRect.top + btnRect.height / 2 - canvasRect.top
-                        };
-                    }
+            const buttons = Array.from(document.querySelectorAll('.nav-button'));
+
+            return buttons.map(button => ({
+                element: button,
+                page: button.dataset.page,
+                getCanvasPos() {
+                    const btnRect = button.getBoundingClientRect();
+                    return {
+                        x: btnRect.left + btnRect.width / 2 - canvasRect.left,
+                        y: btnRect.top + btnRect.height / 2 - canvasRect.top
+                    };
                 },
-                {
-                    element: document.getElementById('aboutMatthewBtn'),
-                    page: 'about-matthew.html',
-                    width: 200,
-                    height: 80,
-                    getCanvasPos: function() {
-                        const btnRect = this.element.getBoundingClientRect();
-                        return {
-                            x: btnRect.left + btnRect.width / 2 - canvasRect.left,
-                            y: btnRect.top + btnRect.height / 2 - canvasRect.top
-                        };
-                    }
+                getDimensions() {
+                    const { width, height } = button.getBoundingClientRect();
+                    return { width, height };
                 }
-            ];
+            }));
         }
 
         let navButtons = getButtonPositions();
@@ -385,12 +380,13 @@
                 // Check collision with navigation buttons
                 for (let btn of navButtons) {
                     const pos = btn.getCanvasPos();
+                    const { width: btnWidth, height: btnHeight } = btn.getDimensions();
                     
                     // Check if bullet is within button bounds
-                    if (bullet.x >= pos.x - btn.width/2 && 
-                        bullet.x <= pos.x + btn.width/2 &&
-                        bullet.y >= pos.y - btn.height/2 && 
-                        bullet.y <= pos.y + btn.height/2) {
+                    if (bullet.x >= pos.x - btnWidth / 2 && 
+                        bullet.x <= pos.x + btnWidth / 2 &&
+                        bullet.y >= pos.y - btnHeight / 2 && 
+                        bullet.y <= pos.y + btnHeight / 2) {
                         
                         // Hit button!
                         bullets.splice(i, 1);
@@ -493,15 +489,16 @@
             // Draw target indicators on buttons
             navButtons.forEach(btn => {
                 const pos = btn.getCanvasPos();
+                const { width: btnWidth, height: btnHeight } = btn.getDimensions();
                 ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
                 ctx.lineWidth = 2;
                 ctx.setLineDash([5, 5]);
                 ctx.beginPath();
                 ctx.rect(
-                    pos.x - btn.width/2 - 5,
-                    pos.y - btn.height/2 - 5,
-                    btn.width + 10,
-                    btn.height + 10
+                    pos.x - btnWidth / 2 - 5,
+                    pos.y - btnHeight / 2 - 5,
+                    btnWidth + 10,
+                    btnHeight + 10
                 );
                 ctx.stroke();
                 ctx.setLineDash([]);
@@ -534,14 +531,11 @@
         }
 
         // Prevent clicking on buttons directly - tell user to use SPACE
-        document.getElementById('aboutMeBtn').addEventListener('click', (e) => {
-            e.preventDefault();
-            alert('Press SPACE to shoot the button and navigate!');
-        });
-
-        document.getElementById('aboutMatthewBtn').addEventListener('click', (e) => {
-            e.preventDefault();
-            alert('Press SPACE to shoot the button and navigate!');
+        document.querySelectorAll('.nav-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                alert('Press SPACE to shoot the button and navigate!');
+            });
         });
 
         // Start game
