@@ -334,12 +334,19 @@
                 <input type="text" name="name" id="fruitName" placeholder="e.g. Dragonfruit" autocomplete="off" required>
             </label>
             <label>
-                Picked at (leave blank for now)
-                <input type="datetime-local" name="pickDate" id="fruitPickDate" autocomplete="off">
+                Date picked (optional)
+                <input type="datetime-local" name="datePicked" id="fruitDatePicked" autocomplete="off">
             </label>
             <label>
                 Taste
                 <input type="text" name="taste" id="fruitTaste" placeholder="e.g. sweet" autocomplete="off" required>
+            </label>
+            <label>
+                Ripe?
+                <select name="isRipe" id="fruitIsRipe">
+                    <option value="true" selected>Yes</option>
+                    <option value="false">No</option>
+                </select>
             </label>
             <button type="submit" id="addFruitButton">+ Add Fruit</button>
             <button type="button" id="seedFruitButton">Add Sample Fruit</button>
@@ -428,7 +435,8 @@
                         const formData = new FormData(fruitForm);
                         const name = (formData.get('name') || '').toString().trim();
                         const taste = (formData.get('taste') || '').toString().trim();
-                        const pickDateRaw = (formData.get('pickDate') || '').toString().trim();
+                        const datePickedRaw = (formData.get('datePicked') || '').toString().trim();
+                        const isRipeValue = (formData.get('isRipe') || 'true').toString().trim();
 
                         if (!name) {
                             showFruitMessage('Please enter a fruit name before adding.', 'error');
@@ -446,9 +454,8 @@
                         const payload = {
                             name,
                             taste,
-                            type: 'fruit',
-                            createdAt: serverTimestamp(),
-                            pickDate: pickDateRaw ? new Date(pickDateRaw) : serverTimestamp()
+                            isRipe: isRipeValue !== 'false',
+                            datePicked: datePickedRaw ? new Date(datePickedRaw) : serverTimestamp()
                         };
 
                         try {
@@ -466,11 +473,11 @@
 
                 if (seedFruitButton) {
                     const sampleFruits = [
-                        { name: 'Pineapple', taste: 'sweet-tart' },
-                        { name: 'Lychee', taste: 'floral-sweet' },
-                        { name: 'Starfruit', taste: 'crisp and tangy' },
-                        { name: 'Rambutan', taste: 'juicy and sweet' },
-                        { name: 'Kiwano', taste: 'mild and citrusy' }
+                        { name: 'Pineapple', taste: 'sweet-tart', isRipe: true },
+                        { name: 'Lychee', taste: 'floral-sweet', isRipe: true },
+                        { name: 'Starfruit', taste: 'crisp and tangy', isRipe: false },
+                        { name: 'Rambutan', taste: 'juicy and sweet', isRipe: true },
+                        { name: 'Kiwano', taste: 'mild and citrusy', isRipe: false }
                     ];
 
                     seedFruitButton.addEventListener('click', async () => {
@@ -482,9 +489,8 @@
                             await addDoc(baseCollection, {
                                 name: pick.name,
                                 taste: pick.taste,
-                                type: 'fruit',
-                                createdAt: serverTimestamp(),
-                                pickDate: serverTimestamp()
+                                isRipe: pick.isRipe,
+                                datePicked: serverTimestamp()
                             });
                             showFruitMessage(`Sample fruit "${pick.name}" added.`, 'success');
                         } catch (err) {
