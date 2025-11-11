@@ -68,10 +68,11 @@
                 0 0 30px rgba(0, 255, 0, 0.5),
                 inset 0 0 30px rgba(0, 255, 0, 0.1);
             padding: 40px;
+            min-height: 100vh;
         }
 
         #gameCanvas {
-            position: fixed;
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
@@ -209,9 +210,8 @@
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas"></canvas>
-    
     <div class="game-container">
+        <canvas id="gameCanvas"></canvas>
         <h1>>> ABOUT MATTHEW <span class="cursor">_</span></h1>
         
         <div class="content">
@@ -261,11 +261,21 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Set canvas size
+        // Set canvas size relative to game container
         function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            canvas.classList.add('active');
+            const container = document.querySelector('.game-container');
+            if (container) {
+                const rect = container.getBoundingClientRect();
+                canvas.width = rect.width;
+                canvas.height = Math.max(rect.height, window.innerHeight);
+                canvas.style.width = '100%';
+                canvas.style.height = '100%';
+                canvas.classList.add('active');
+            } else {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                canvas.classList.add('active');
+            }
         }
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
@@ -300,16 +310,19 @@
             // Home button
             const homeBtn = document.getElementById('homeBtn');
             if (homeBtn) {
-                const btnRect = homeBtn.getBoundingClientRect();
                 targets.push({
                     element: homeBtn,
                     page: 'index.html',
                     width: 250,
                     height: 60,
                     getCanvasPos: function() {
+                        const btnRect = this.element.getBoundingClientRect();
+                        const canvasRect = canvas.getBoundingClientRect();
+                        const scaleX = canvas.width / canvasRect.width;
+                        const scaleY = canvas.height / canvasRect.height;
                         return {
-                            x: btnRect.left + btnRect.width / 2 - canvasRect.left,
-                            y: btnRect.top + btnRect.height / 2 - canvasRect.top
+                            x: (btnRect.left + btnRect.width / 2 - canvasRect.left) * scaleX,
+                            y: (btnRect.top + btnRect.height / 2 - canvasRect.top) * scaleY
                         };
                     }
                 });
@@ -327,11 +340,18 @@
         // Event listeners
         canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
-            mouseX = e.clientX - rect.left;
-            mouseY = e.clientY - rect.top;
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            mouseX = (e.clientX - rect.left) * scaleX;
+            mouseY = (e.clientY - rect.top) * scaleY;
         });
 
         canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            mouseX = (e.clientX - rect.left) * scaleX;
+            mouseY = (e.clientY - rect.top) * scaleY;
             shoot();
         });
 
@@ -368,20 +388,27 @@
             });
         }
 
-        // Update player
+        // Update player with frame-rate independent movement
+        let lastUpdateTime = performance.now();
         function updatePlayer() {
+            const currentTime = performance.now();
+            const deltaTime = Math.min((currentTime - lastUpdateTime) / 16.67, 2); // Cap deltaTime to prevent large jumps
+            lastUpdateTime = currentTime;
+            
+            const moveDistance = player.moveSpeed * deltaTime;
+            
             // WASD movement
             if (keys['w']) {
-                player.y = Math.max(player.size, player.y - player.moveSpeed);
+                player.y = Math.max(player.size, player.y - moveDistance);
             }
             if (keys['s']) {
-                player.y = Math.min(canvas.height - player.size, player.y + player.moveSpeed);
+                player.y = Math.min(canvas.height - player.size, player.y + moveDistance);
             }
             if (keys['a']) {
-                player.x = Math.max(player.size, player.x - player.moveSpeed);
+                player.x = Math.max(player.size, player.x - moveDistance);
             }
             if (keys['d']) {
-                player.x = Math.min(canvas.width - player.size, player.x + player.moveSpeed);
+                player.x = Math.min(canvas.width - player.size, player.x + moveDistance);
             }
 
             // Rotate with arrow keys
@@ -561,9 +588,16 @@
 
         // Fade out controls after 5 seconds
         const controls = document.querySelector('.controls');
-        setTimeout(() => {
-            controls.classList.add('fade-out');
-        }, 5000);
+        if (controls) {
+            setTimeout(() => {
+                controls.classList.add('fade-out');
+            }, 5000);
+        }
+        
+        // Prevent canvas scrolling
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+        }, { passive: false });
 
         // Start game
         gameLoop();
