@@ -453,9 +453,9 @@
 
                         const payload = {
                             name,
+                            datePicked: datePickedRaw ? new Date(datePickedRaw) : serverTimestamp(),
                             taste,
-                            isRipe: isRipeValue !== 'false',
-                            datePicked: datePickedRaw ? new Date(datePickedRaw) : serverTimestamp()
+                            isRipe: isRipeValue !== 'false'
                         };
 
                         try {
@@ -488,9 +488,9 @@
                         try {
                             await addDoc(baseCollection, {
                                 name: pick.name,
+                                datePicked: serverTimestamp(),
                                 taste: pick.taste,
-                                isRipe: pick.isRipe,
-                                datePicked: serverTimestamp()
+                                isRipe: pick.isRipe
                             });
                             showFruitMessage(`Sample fruit "${pick.name}" added.`, 'success');
                         } catch (err) {
@@ -517,10 +517,19 @@
                     });
 
                     const fragment = document.createDocumentFragment();
+                    // Define consistent field order: Name, datePicked, Taste, isRipe
+                    const fieldOrder = ['name', 'datePicked', 'taste', 'isRipe'];
+                    
                     docs.forEach(doc => {
                         const data = doc.data();
-                        const renderedFields = Object.entries(data).map(([key, value]) => {
+                        
+                        // Render fields in consistent order
+                        const renderedFields = fieldOrder.map(key => {
+                            if (!(key in data)) return '';
+                            
+                            const value = data[key];
                             let displayValue = value;
+                            
                             if (value && typeof value === 'object' && typeof value.toDate === 'function') {
                                 try {
                                     const iso = value.toDate().toISOString();
@@ -542,13 +551,39 @@
                                 </div>
                             `;
                         }).join('');
+                        
+                        // Add any remaining fields that aren't in the ordered list
+                        const remainingFields = Object.entries(data)
+                            .filter(([key]) => !fieldOrder.includes(key))
+                            .map(([key, value]) => {
+                                let displayValue = value;
+                                if (value && typeof value === 'object' && typeof value.toDate === 'function') {
+                                    try {
+                                        const iso = value.toDate().toISOString();
+                                        const readable = value.toDate().toLocaleString();
+                                        displayValue = `${readable}\n(${iso})`;
+                                    } catch (err) {
+                                        displayValue = JSON.stringify(value, null, 2);
+                                    }
+                                } else if (Array.isArray(value)) {
+                                    displayValue = value.map(item => JSON.stringify(item)).join(', ');
+                                } else if (typeof value === 'object') {
+                                    displayValue = JSON.stringify(value, null, 2);
+                                }
+                                return `
+                                    <div class="field">
+                                        <span class="key">${key}</span>
+                                        <span class="value">${displayValue}</span>
+                                    </div>
+                                `;
+                            }).join('');
 
                         const card = document.createElement('article');
                         card.className = 'card';
                         card.innerHTML = `
                             <h2># ${doc.id}</h2>
                             <div class="fields">
-                                ${renderedFields}
+                                ${renderedFields}${remainingFields}
                             </div>
                         `;
                         fragment.appendChild(card);
@@ -579,5 +614,6 @@
 
         bootstrap();
     </script>
+    <script src="navigation-toggle.js"></script>
 </body>
 </html>

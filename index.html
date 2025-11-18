@@ -190,7 +190,7 @@
         </div>
 
         <div class="controls">
-            <p>WASD to Move | ← → Arrow Keys or Mouse to Rotate | Click or Space to Shoot</p>
+            <p>WASD to Move | Mouse to Rotate | Click or Space to Shoot</p>
         </div>
 
         <div class="instructions">
@@ -198,6 +198,7 @@
         </div>
     </div>
 
+    <script src="navigation-toggle.js"></script>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -222,6 +223,9 @@
 
         // Keyboard state
         const keys = {};
+        let spacePressed = false;
+        let lastShotTime = 0;
+        const shootInterval = 150; // ms between shots when holding space
 
         // Navigation buttons data - calculate positions dynamically
         function getButtonPositions() {
@@ -269,11 +273,12 @@
             
             if (e.key === ' ') {
                 e.preventDefault();
-                shoot();
-            }
-            // Prevent arrow key scrolling
-            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
-                e.preventDefault();
+                spacePressed = true;
+                // Shoot immediately on first press
+                if (Date.now() - lastShotTime > shootInterval) {
+                    shoot();
+                    lastShotTime = Date.now();
+                }
             }
             // Prevent default for WASD keys
             if (['w', 'a', 's', 'd'].includes(key)) {
@@ -284,14 +289,19 @@
         document.addEventListener('keyup', (e) => {
             const key = e.key.toLowerCase();
             keys[key] = false;
+            
+            if (e.key === ' ') {
+                spacePressed = false;
+            }
         });
 
         // Shoot function
         function shoot() {
+            if (!player) return;
             bullets.push({
-                x: player.x,
-                y: player.y,
-                angle: player.angle,
+                x: player.x || canvas.width / 2,
+                y: player.y || canvas.height / 2,
+                angle: player.angle || 0,
                 speed: 10,
                 radius: 5,
                 color: '#ffff00'
@@ -308,46 +318,35 @@
 
         // Update player
         function updatePlayer() {
+            if (!player) return;
+            
             // WASD movement
             if (keys['w']) {
-                player.y = Math.max(player.size, player.y - player.moveSpeed);
+                player.y = Math.max(player.size || 25, player.y - (player.moveSpeed || 5));
             }
             if (keys['s']) {
-                player.y = Math.min(canvas.height - player.size, player.y + player.moveSpeed);
+                player.y = Math.min(canvas.height - (player.size || 25), player.y + (player.moveSpeed || 5));
             }
             if (keys['a']) {
-                player.x = Math.max(player.size, player.x - player.moveSpeed);
+                player.x = Math.max(player.size || 25, player.x - (player.moveSpeed || 5));
             }
             if (keys['d']) {
-                player.x = Math.min(canvas.width - player.size, player.x + player.moveSpeed);
-            }
-
-            // Rotate with arrow keys - takes priority over mouse
-            if (keys['arrowleft']) {
-                player.angle -= player.speed * 8;
-            }
-            if (keys['arrowright']) {
-                player.angle += player.speed * 8;
+                player.x = Math.min(canvas.width - (player.size || 25), player.x + (player.moveSpeed || 5));
             }
             
-            // Rotate toward mouse only if arrow keys are not pressed
-            if (!keys['arrowleft'] && !keys['arrowright']) {
-                const dx = mouseX - player.x;
-                const dy = mouseY - player.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
+            // Rotate toward mouse
+            const dx = mouseX - player.x;
+            const dy = mouseY - player.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance > 10) {
+                const targetAngle = Math.atan2(dy, dx);
+                let angleDiff = targetAngle - (player.angle || 0);
                 
-                // Only rotate if mouse is within reasonable distance
-                if (distance > 10) {
-                    const targetAngle = Math.atan2(dy, dx);
-                    let angleDiff = targetAngle - player.angle;
-                    
-                    // Normalize angle difference to [-PI, PI]
-                    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
-                    while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-                    
-                    // Reduce angular momentum - faster, more direct rotation
-                    player.angle += angleDiff * 0.3;
-                }
+                while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+                
+                player.angle = (player.angle || 0) + angleDiff * 0.3;
             }
 
             // Check if player is in secret zone (middle bottom of screen)
@@ -378,31 +377,44 @@
                 }
 
                 // Check collision with navigation buttons
-                for (let btn of navButtons) {
-                    const pos = btn.getCanvasPos();
-                    const { width: btnWidth, height: btnHeight } = btn.getDimensions();
-                    
-                    // Check if bullet is within button bounds
-                    if (bullet.x >= pos.x - btnWidth / 2 && 
-                        bullet.x <= pos.x + btnWidth / 2 &&
-                        bullet.y >= pos.y - btnHeight / 2 && 
-                        bullet.y <= pos.y + btnHeight / 2) {
-                        
-                        // Hit button!
-                        bullets.splice(i, 1);
-                        
-                        // Flash effect
-                        btn.element.classList.add('hit');
-                        setTimeout(() => {
-                            btn.element.classList.remove('hit');
-                        }, 300);
-                        
-                        // Navigate after short delay for visual effect
-                        setTimeout(() => {
-                            window.location.href = btn.page;
-                        }, 300);
-                        
-                        break;
+                if (navButtons && navButtons.length > 0) {
+                    for (let btn of navButtons) {
+                        try {
+                            const pos = btn.getCanvasPos();
+                            const dims = btn.getDimensions();
+                            const btnWidth = dims ? (dims.width || 200) : 200;
+                            const btnHeight = dims ? (dims.height || 80) : 80;
+                            
+                            // Check if bullet is within button bounds
+                            if (bullet.x >= pos.x - btnWidth / 2 && 
+                                bullet.x <= pos.x + btnWidth / 2 &&
+                                bullet.y >= pos.y - btnHeight / 2 && 
+                                bullet.y <= pos.y + btnHeight / 2) {
+                                
+                                // Hit button!
+                                bullets.splice(i, 1);
+                                
+                                // Flash effect
+                                if (btn.element) {
+                                    btn.element.classList.add('hit');
+                                    setTimeout(() => {
+                                        btn.element.classList.remove('hit');
+                                    }, 300);
+                                }
+                                
+                                // Navigate after short delay for visual effect
+                                if (btn.page) {
+                                    setTimeout(() => {
+                                        window.location.href = btn.page;
+                                    }, 300);
+                                }
+                                
+                                break;
+                            }
+                        } catch (e) {
+                            // Skip if button position can't be calculated
+                            continue;
+                        }
                     }
                 }
             }
@@ -410,34 +422,61 @@
 
         // Draw functions
         function drawPlayer() {
-            ctx.save();
-            ctx.translate(player.x, player.y);
-            ctx.rotate(player.angle);
-
-            // Draw triangle
-            ctx.beginPath();
-            ctx.moveTo(player.size, 0);
-            ctx.lineTo(-player.size, -player.size * 0.8);
-            ctx.lineTo(-player.size, player.size * 0.8);
-            ctx.closePath();
+            // Always ensure player exists
+            if (!player) {
+                player = {
+                    x: canvas.width / 2,
+                    y: canvas.height / 2,
+                    angle: 0,
+                    size: 25,
+                    speed: 0.05,
+                    moveSpeed: 5,
+                    color: '#00ff00'
+                };
+            }
             
-            // Gradient fill
-            const gradient = ctx.createLinearGradient(-player.size, 0, player.size, 0);
-            gradient.addColorStop(0, '#00ff00');
-            gradient.addColorStop(1, '#00aa00');
-            ctx.fillStyle = gradient;
-            ctx.fill();
+            if (!ctx || !canvas) return;
             
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
+            // Ensure player has valid position
+            if (isNaN(player.x) || isNaN(player.y) || player.x === undefined || player.y === undefined) {
+                player.x = canvas.width / 2;
+                player.y = canvas.height / 2;
+            }
+            
+            try {
+                ctx.save();
+                ctx.translate(player.x, player.y);
+                ctx.rotate(player.angle || 0);
 
-            // Glow effect
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = '#00ff00';
-            ctx.stroke();
+                // Draw triangle
+                const size = player.size || 25;
+                ctx.beginPath();
+                ctx.moveTo(size, 0);
+                ctx.lineTo(-size, -size * 0.8);
+                ctx.lineTo(-size, size * 0.8);
+                ctx.closePath();
+                
+                // Gradient fill
+                const gradient = ctx.createLinearGradient(-size, 0, size, 0);
+                gradient.addColorStop(0, '#00ff00');
+                gradient.addColorStop(1, '#00aa00');
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
 
-            ctx.restore();
+                // Glow effect
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#00ff00';
+                ctx.stroke();
+
+                ctx.restore();
+            } catch (e) {
+                console.error('Error drawing player:', e);
+                ctx.restore();
+            }
         }
 
         function drawBullets() {
@@ -487,22 +526,30 @@
             }
 
             // Draw target indicators on buttons
-            navButtons.forEach(btn => {
-                const pos = btn.getCanvasPos();
-                const { width: btnWidth, height: btnHeight } = btn.getDimensions();
-                ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([5, 5]);
-                ctx.beginPath();
-                ctx.rect(
-                    pos.x - btnWidth / 2 - 5,
-                    pos.y - btnHeight / 2 - 5,
-                    btnWidth + 10,
-                    btnHeight + 10
-                );
-                ctx.stroke();
-                ctx.setLineDash([]);
-            });
+            if (navButtons && navButtons.length > 0) {
+                navButtons.forEach(btn => {
+                    try {
+                        const pos = btn.getCanvasPos();
+                        const dims = btn.getDimensions();
+                        const btnWidth = dims.width || 200;
+                        const btnHeight = dims.height || 80;
+                        ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
+                        ctx.lineWidth = 2;
+                        ctx.setLineDash([5, 5]);
+                        ctx.beginPath();
+                        ctx.rect(
+                            pos.x - btnWidth / 2 - 5,
+                            pos.y - btnHeight / 2 - 5,
+                            btnWidth + 10,
+                            btnHeight + 10
+                        );
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    } catch (e) {
+                        // Skip if button position can't be calculated
+                    }
+                });
+            }
 
             // Draw secret zone indicator at bottom center
             ctx.strokeStyle = 'rgba(255, 255, 0, 0.2)';
@@ -526,20 +573,41 @@
         function gameLoop() {
             updatePlayer();
             updateBullets();
+            
+            // Continuous shooting when space is held
+            if (spacePressed && Date.now() - lastShotTime > shootInterval) {
+                shoot();
+                lastShotTime = Date.now();
+            }
+            
             draw();
             requestAnimationFrame(gameLoop);
         }
 
-        // Prevent clicking on buttons directly - tell user to use SPACE
-        document.querySelectorAll('.nav-button').forEach(button => {
-            button.addEventListener('click', (e) => {
-                e.preventDefault();
-                alert('Press SPACE to shoot the button and navigate!');
+        // Handle button clicks based on shooter mode
+        function setupButtonClicks() {
+            document.querySelectorAll('.nav-button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    if (window.NavigationToggle && !window.NavigationToggle.isShooterModeEnabled()) {
+                        // Click mode - allow normal navigation
+                        e.stopPropagation();
+                        window.location.href = button.dataset.page;
+                    } else {
+                        // Shooter mode - prevent clicks
+                        e.preventDefault();
+                        e.stopPropagation();
+                        alert('Press SPACE to shoot the button and navigate!');
+                    }
+                });
             });
-        });
+        }
+        
+        setupButtonClicks();
 
-        // Start game
-        gameLoop();
+        // Start game only if shooter mode is enabled
+        if (!window.NavigationToggle || window.NavigationToggle.isShooterModeEnabled()) {
+            gameLoop();
+        }
     </script>
 </body>
 </html>

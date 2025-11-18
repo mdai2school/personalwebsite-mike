@@ -614,14 +614,45 @@
             requestAnimationFrame(gameLoop);
         }
 
-        // Prevent direct clicking
-        document.getElementById('homeBtn').addEventListener('click', (e) => {
-            e.preventDefault();
-        });
-
-        document.getElementById('hairyBallText').addEventListener('click', (e) => {
-            e.preventDefault();
-        });
+        // Handle button clicks based on shooter mode
+        function setupButtonClicks() {
+            const homeBtn = document.getElementById('homeBtn');
+            const hairyBallText = document.getElementById('hairyBallText');
+            
+            if (homeBtn) {
+                homeBtn.addEventListener('click', (e) => {
+                    // Check if shooter mode is enabled
+                    const shooterMode = window.NavigationToggle ? 
+                        window.NavigationToggle.isShooterModeEnabled() : 
+                        (document.cookie.indexOf('shooterMode=false') === -1);
+                    
+                    if (!shooterMode) {
+                        // Click mode - allow navigation
+                        return; // Let default link behavior work
+                    } else {
+                        // Shooter mode - prevent clicks
+                        e.preventDefault();
+                    }
+                });
+            }
+            
+            if (hairyBallText) {
+                hairyBallText.addEventListener('click', (e) => {
+                    const shooterMode = window.NavigationToggle ? 
+                        window.NavigationToggle.isShooterModeEnabled() : 
+                        (document.cookie.indexOf('shooterMode=false') === -1);
+                    
+                    if (!shooterMode) {
+                        return; // Allow navigation
+                    } else {
+                        e.preventDefault();
+                    }
+                });
+            }
+        }
+        
+        // Setup button clicks after a delay to ensure NavigationToggle is loaded
+        setTimeout(setupButtonClicks, 150);
 
         // Fade out controls after 5 seconds
         const controls = document.querySelector('.controls');
@@ -666,7 +697,40 @@
             requestAnimationFrame(optimizedGameLoop);
         }
         
-        requestAnimationFrame(optimizedGameLoop);
+        // Check shooter mode before starting game
+        function startGameIfEnabled() {
+            // Wait for NavigationToggle to be available
+            if (window.NavigationToggle) {
+                if (window.NavigationToggle.isShooterModeEnabled()) {
+                    requestAnimationFrame(optimizedGameLoop);
+                } else {
+                    // Hide canvas if shooter mode is disabled
+                    canvas.style.display = 'none';
+                }
+            } else {
+                // If NavigationToggle not loaded yet, check cookie directly
+                function getCookie(name) {
+                    const nameEQ = name + "=";
+                    const ca = document.cookie.split(';');
+                    for (let i = 0; i < ca.length; i++) {
+                        let c = ca[i];
+                        while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                        if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+                    }
+                    return null;
+                }
+                const shooterMode = getCookie('shooterMode');
+                if (shooterMode === null || shooterMode === 'true') {
+                    requestAnimationFrame(optimizedGameLoop);
+                } else {
+                    canvas.style.display = 'none';
+                }
+            }
+        }
+        
+        // Try to start game after a short delay to ensure NavigationToggle is loaded
+        setTimeout(startGameIfEnabled, 100);
     </script>
+    <script src="navigation-toggle.js"></script>
 </body>
 </html>
